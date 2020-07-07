@@ -1,3 +1,10 @@
+#Author: Kegan Wong
+#Email: kmw037@ucsd.edu
+#Purpose: Log any changes made to the master directory. This script is to be used in conjunction 
+#		  with the excel macro that updates the file in charge of tracking the device history record, 
+#		  device master record and the device history file.
+#Future Use: Change the path to whatever directory Drop Box is synced to.
+
 #!/usr/bin/python
 import pathlib
 import sys
@@ -35,6 +42,14 @@ def createFirstHistLog(fileFHL, pathToAll):
 			fileFHL.write(os.path.join(root,f))
 			fileFHL.write(newL)
 
+def writeDFile(dFile, content):
+	dFile.write(content)
+	dFile.write(newL)
+
+def writeIFile(iFile, content):
+	iFile.write(content)
+	iFile.write(newL)
+
 #obtain all files and sub-directories in current DropBox directory
 for root, dirs, files in os.walk(pathToAll):	
 	for f in files:
@@ -43,20 +58,18 @@ for root, dirs, files in os.walk(pathToAll):
 	for d in dirs:
 		newDirs.add(os.path.join(root,d))
 
+#cases for non-existing files
 if (not os.path.exists(pathToLog)):
 	old = open(pathToLog, append)
 	createFirstHistLog(old, pathToAll)
 	old.close()
 	sys.exit(0)
 
-if (not os.path.exists(pathToDFile)):
-	dFile = open(pathToDFile, append)
-
-if (not os.path.exists(pathToIFile)):
-	iFile = open(pathToIFile, append)
-
+dFile = open(pathToDFile, write)
+iFile = open(pathToIFile, write)
 old = open(pathToLog, read)
 
+#read from old version history
 for line in old:
 	line = line.rstrip(newL)
 	oldFiles.add(line)
@@ -68,13 +81,36 @@ if newFiles.issubset(oldFiles) and oldFiles.issubset(newFiles):
 elif newFiles.issubset(oldFiles):
 	deleted = oldFiles - newFiles
 
+	for dStr in deleted:
+		writeDFile(dFile, dStr)
+
+	dFile.close()
+
 #Case 3: Most current version is a strict superset of the old version (newFiles.issuperset(oldFiles) = true), insertion
 elif newFiles.issuperset(oldFiles):
 	inserted = newFiles - oldFiles
 
-#Case 4: Some hybrid of insertions and deletions(perform deletions first, then insertions)... iterate from oldFiles, and compare every
-#		 file to the most recent version. If they are not in it, then its a delete. Conversely, newFiles - oldFiles yields what was 
-#		 inserted.
+	for iStr in inserted:
+		writeIFile(iFile, iStr)
+
+	iFile.close()
+
+#Case 4: Some hybrid of insertions and deletions(perform deletions first, then insertions).
 else:
 	deleted = oldFiles - newFiles
 	inserted = newFiles - oldFiles
+
+	for dStr in deleted:
+		writeDFile(dFile, dStr)
+
+	for iStr in inserted:
+		writeIFile(iFile, iStr)
+
+	dFile.close()
+	iFile.close()
+
+
+
+
+
+
