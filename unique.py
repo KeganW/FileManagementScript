@@ -3,8 +3,8 @@
 #Purpose: Log any changes made to the master directory. This script is to be used in conjunction 
 #		  with the excel macro that updates the file in charge of tracking the device history record, 
 #		  device master record and the device history file.
-#Future Use: Change the path to whatever directory Drop Box is synced to.
-
+#Future Use: Change the path to whatever directory Drop Box is synced to. For full path to a file,
+#	         use os.path.join(root,f) 
 #!/usr/bin/python
 import pathlib
 import sys
@@ -23,40 +23,44 @@ newFiles = set()
 newDirs = set()
 
 #paths to files
-pathToLog = "/Users/k3go/Desktop/FileHistoryLog/MasterFileLog.txt"
+pathToLog = "/Users/k3go/Desktop/FileHistoryLog/LastFileLog.txt"
 pathToDFile = "/Users/k3go/Desktop/FileHistoryLog/Deleted.txt"
 pathToIFile = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
-pathToAll = "/Users/k3go/Desktop/Smarty"
+pathToAll = "/Users/k3go/Dropbox (ValenciaT)/TestDropBox"
 
 #permissions
 append = "a"
 write = "w"
 read = "r"
 
-#special characters
+#special characters and strings
 newL = "\n"
+ds = ".DS_Store"
 
 def createFirstHistLog(fileFHL, pathToAll):
 	for root, dirs, files in os.walk(pathToAll):
 		for f in files:
-			fileFHL.write(os.path.join(root,f))
-			fileFHL.write(newL)
+			if (not f == ds):
+				fileFHL.write(f)
+				fileFHL.write(newL)
 
 def writeDFile(dFile, content):
-	dFile.write(content)
-	dFile.write(newL)
+	if (not content == ds):
+		dFile.write(content)
+		dFile.write(newL)
 
 def writeIFile(iFile, content):
-	iFile.write(content)
-	iFile.write(newL)
+	if (not content == ds):
+		iFile.write(content)
+		iFile.write(newL)
 
 #obtain all files and sub-directories in current DropBox directory
 for root, dirs, files in os.walk(pathToAll):	
 	for f in files:
-		newFiles.add(os.path.join(root,f))
+		newFiles.add(f)
 		
 	for d in dirs:
-		newDirs.add(os.path.join(root,d))
+		newDirs.add(d)
 
 #cases for non-existing files
 if (not os.path.exists(pathToLog)):
@@ -108,9 +112,3 @@ else:
 
 	dFile.close()
 	iFile.close()
-
-
-
-
-
-
