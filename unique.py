@@ -26,7 +26,7 @@ newDirs = set()
 pathToLog = "/Users/k3go/Desktop/FileHistoryLog/LastFileLog.txt"
 pathToDFile = "/Users/k3go/Desktop/FileHistoryLog/Deleted.txt"
 pathToIFile = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
-pathToAll = "/Users/k3go/Dropbox (ValenciaT)/TestDropBox"
+pathToAll = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF"
 
 #permissions
 append = "a"
@@ -35,37 +35,43 @@ read = "r"
 
 #special characters and strings
 newL = "\n"
-ds = ".DS_Store"
+hiddenF = "."
+extension = ".pdf"
 
-def createFirstHistLog(fileFHL, pathToAll):
-	for root, dirs, files in os.walk(pathToAll):
-		for f in files:
-			if (not f == ds):
-				fileFHL.write(f)
-				fileFHL.write(newL)
+
+def checkValidFile(fileName):
+	return fileName.lower().endswith(extension)
+
+def createFirstHistLog(fileFHL, pathToAll, files):
+
+	for f in files:
+		if (checkValidFile(f)):
+			fileFHL.write(f)
+			fileFHL.write(newL)
 
 def writeDFile(dFile, content):
-	if (not content == ds):
-		dFile.write(content)
-		dFile.write(newL)
+
+	dFile.write(content)
+	dFile.write(newL)
 
 def writeIFile(iFile, content):
-	if (not content == ds):
-		iFile.write(content)
-		iFile.write(newL)
+
+	iFile.write(content)
+	iFile.write(newL)
 
 #obtain all files and sub-directories in current DropBox directory
 for root, dirs, files in os.walk(pathToAll):	
 	for f in files:
-		newFiles.add(f)
-		
+		if (not f.startswith(hiddenF)):
+			print(f)
+			newFiles.add(f)
 	for d in dirs:
 		newDirs.add(d)
 
 #cases for non-existing files
 if (not os.path.exists(pathToLog)):
 	old = open(pathToLog, append)
-	createFirstHistLog(old, pathToAll)
+	createFirstHistLog(old, pathToAll, newFiles)
 	old.close()
 	sys.exit(0)
 
