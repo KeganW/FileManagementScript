@@ -6,48 +6,111 @@
 #Future Use: Change the path to whatever directory Drop Box is synced to. For full path to a file,
 #	         use os.path.join(root,f) 
 #!/usr/bin/python
+import pandas as pd
+from pandas import ExcelWriter
+from pandas import ExcelFile
+
 import pathlib
 import sys
 import os
+import time
 
 #initialize empty dictionaries
-oldFiles = {}
-oldDirs = {}
-newFiles = {}
-newDirs = {}
+dhFiles = {}
+dbFiles = {}
+docTypes = {}
 
 #convert to empty set
-oldFiles = set()
-oldDirs = set()
-newFiles = set()
-newDirs = set()
+dhFiles = set()
+dbFiles = set()
+docTypes = set()
+
+#initialize empty array
+columns = []
 
 #paths to files
 pathToLog = "/Users/k3go/Desktop/FileHistoryLog/LastFileLog.txt"
 pathToDFile = "/Users/k3go/Desktop/FileHistoryLog/Deleted.txt"
 pathToIFile = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
 pathToAll = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF"
+pathToExcel = "/Users/k3go/Desktop/TestExcel.xlsx"
 
 #permissions
-append = "a"
 write = "w"
 read = "r"
+rw = "w+"
 
-#special characters and strings
+#special characters, magic numbers and strings
 newL = "\n"
 hiddenF = "."
+emptyS = ""
+space = " "
+dash = "-"
 extension = ".pdf"
-
+sheet = "Sheet1"
+splits = 2
+validTime = 1584576000.0
 
 def checkValidFile(fileName):
 	return fileName.lower().endswith(extension)
 
-def createFirstHistLog(fileFHL, pathToAll, files):
+def checkDocNumFormat(documentNumber):
+	
+	contents = []
 
-	for f in files:
-		if (checkValidFile(f)):
-			fileFHL.write(f)
+	if (isinstance(documentNumber, str)):
+		contents = documentNumber.split(dash, splits)
+
+	return len(contents) == splits and checkExcelDigits(contents)
+
+def checkExcelDigits(arrayOfContents):
+
+	status = True
+
+	for contents in arrayOfContents:
+		if (not contents.isnumeric()):
+			status = False
+			break
+
+	return status
+
+def createPrevHistLog(fileFHL):
+	
+	df = pd.read_excel(pathToExcel, sheet)
+	columnNames = df.columns
+	
+	for column in columnNames:
+		columns.append(column)
+
+	docNums = df[columns[0]]
+
+	for numStr in docNums:
+
+		if(isinstance(numStr,str) and checkDocNumFormat(numStr)):
+			docTypes.add(numStr.split(dash)[0])
+			dhFiles.add(numStr)
+			fileFHL.write(numStr)
 			fileFHL.write(newL)
+
+def parseDropBoxFiles(fname):
+	#FOR NEXT TIME: FILES THAT ARE IN THE DROP BOX DIRECTORY ARE INCLUDED IN THE FHL, so
+	#if we put a later date, then some of the files won't be recorded... fix: track old files,
+	#and put them in a set. condition checks condition 1 OR in set
+	fContents = fname.split(space)
+
+	for contents in fContents:
+		counter = 0
+		if (contents.count(dash) >= 1):
+			fNumStr = contents.split(dash,contents.count(dash))
+			for parts in fNumStr:
+				if (parts.isnumeric()):
+					counter = counter + 1
+
+			if(counter == len(fNumStr)):
+				if (contents.split(dash)[0] in docTypes):
+					return contents.split(dash)[0] + dash +  contents.split(dash)[1]
+
+	return emptyS
 
 def writeDFile(dFile, content):
 
@@ -59,56 +122,52 @@ def writeIFile(iFile, content):
 	iFile.write(content)
 	iFile.write(newL)
 
+lastFileLog = open(pathToLog, rw)
+createPrevHistLog(lastFileLog)
+
+dFile = open(pathToDFile, write)
+iFile = open(pathToIFile, write)
+
 #obtain all files and sub-directories in current DropBox directory
 for root, dirs, files in os.walk(pathToAll):	
 	for f in files:
 		if (not f.startswith(hiddenF)):
-			print(f)
-			newFiles.add(f)
-	for d in dirs:
-		newDirs.add(d)
-
-#cases for non-existing files
-if (not os.path.exists(pathToLog)):
-	old = open(pathToLog, append)
-	createFirstHistLog(old, pathToAll, newFiles)
-	old.close()
-	sys.exit(0)
-
-dFile = open(pathToDFile, write)
-iFile = open(pathToIFile, write)
-old = open(pathToLog, read)
+			if(parseDropBoxFiles(f) != emptyS):	
+				if ((os.path.getmtime(os.path.join(root,f)) >= validTime) or (parseDropBoxFiles(f) in dhFiles)):				
+					dbFiles.add(parseDropBoxFiles(f))
+					#print("last modified: %s" % os.path.getmtime(os.path.join(root,f)))
 
 #read from old version history
-for line in old:
-	line = line.rstrip(newL)
-	oldFiles.add(line)
+#for line in lastFileLog:
+#	print(line)
+#	line = line.rstrip(newL)
+#	dhFiles.add(line)
 
-#Case 1:  Most current version has same files as old version(newFiles.issubset(oldFiles) AND oldFiles.issubset(newFiles), no change
-if newFiles.issubset(oldFiles) and oldFiles.issubset(newFiles):
+#Case 1:  Most current version has same files as old version(dbFiles.issubset(dhFiles) AND dhFiles.issubset(dbFiles), no change
+if dbFiles.issubset(dhFiles) and dhFiles.issubset(dbFiles):
 	sys.exit(0)
-#Case 2: Most current version is a strict subset of the old version (newFiles.issubset(oldFiles) = true), deletion
-elif newFiles.issubset(oldFiles):
-	deleted = oldFiles - newFiles
+#Case 2: Most current version is a strict subset of the old version (dbFiles.issubset(dhFiles) = true), deletion
+elif dbFiles.issubset(dhFiles):
+	print("Entered case 2:")
+	deleted = dhFiles - dbFiles
 
 	for dStr in deleted:
 		writeDFile(dFile, dStr)
 
-	dFile.close()
-
-#Case 3: Most current version is a strict superset of the old version (newFiles.issuperset(oldFiles) = true), insertion
-elif newFiles.issuperset(oldFiles):
-	inserted = newFiles - oldFiles
+#Case 3: Most current version is a strict superset of the old version (dbFiles.issuperset(dhFiles) = true), insertion
+elif dbFiles.issuperset(dhFiles):
+	
+	print("Entered case 3:")
+	inserted = dbFiles - dhFiles
 
 	for iStr in inserted:
 		writeIFile(iFile, iStr)
-
-	iFile.close()
 
 #Case 4: Some hybrid of insertions and deletions(perform deletions first, then insertions).
 else:
-	deleted = oldFiles - newFiles
-	inserted = newFiles - oldFiles
+	print("Entered case 4:")
+	deleted = dhFiles - dbFiles
+	inserted = dbFiles - dhFiles
 
 	for dStr in deleted:
 		writeDFile(dFile, dStr)
@@ -116,5 +175,6 @@ else:
 	for iStr in inserted:
 		writeIFile(iFile, iStr)
 
-	dFile.close()
-	iFile.close()
+lastFileLog.close()
+dFile.close()
+iFile.close()
