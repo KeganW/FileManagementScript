@@ -40,6 +40,10 @@ write = "w"
 read = "r"
 rw = "w+"
 
+#messages
+DELETE_MSG = "Appended deleted files in "
+INSERT_MSG = "Appended inserted files in "
+
 #special characters, magic numbers and strings
 newL = "\n"
 hiddenF = "."
@@ -93,9 +97,7 @@ def createPrevHistLog(fileFHL):
 			fileFHL.write(newL)
 
 def parseDropBoxFiles(fname):
-	#FOR NEXT TIME: FILES THAT ARE IN THE DROP BOX DIRECTORY ARE INCLUDED IN THE FHL, so
-	#if we put a later date, then some of the files won't be recorded... fix: track old files,
-	#and put them in a set. condition checks condition 1 OR in set
+
 	fContents = fname.split(space)
 
 	for contents in fContents:
@@ -135,20 +137,14 @@ for root, dirs, files in os.walk(pathToAll):
 			if(parseDropBoxFiles(f) != emptyS):	
 				if ((os.path.getmtime(os.path.join(root,f)) >= validTime) or (parseDropBoxFiles(f) in dhFiles)):				
 					dbFiles.add(parseDropBoxFiles(f))
-					#print("last modified: %s" % os.path.getmtime(os.path.join(root,f)))
-
-#read from old version history
-#for line in lastFileLog:
-#	print(line)
-#	line = line.rstrip(newL)
-#	dhFiles.add(line)
-
+					
 #Case 1:  Most current version has same files as old version(dbFiles.issubset(dhFiles) AND dhFiles.issubset(dbFiles), no change
 if dbFiles.issubset(dhFiles) and dhFiles.issubset(dbFiles):
 	sys.exit(0)
 #Case 2: Most current version is a strict subset of the old version (dbFiles.issubset(dhFiles) = true), deletion
 elif dbFiles.issubset(dhFiles):
-	print("Entered case 2:")
+
+	print(DELETE_MSG + pathToDFile)
 	deleted = dhFiles - dbFiles
 
 	for dStr in deleted:
@@ -157,7 +153,7 @@ elif dbFiles.issubset(dhFiles):
 #Case 3: Most current version is a strict superset of the old version (dbFiles.issuperset(dhFiles) = true), insertion
 elif dbFiles.issuperset(dhFiles):
 	
-	print("Entered case 3:")
+	print(INSERT_MSG + pathToIFile)
 	inserted = dbFiles - dhFiles
 
 	for iStr in inserted:
@@ -165,7 +161,10 @@ elif dbFiles.issuperset(dhFiles):
 
 #Case 4: Some hybrid of insertions and deletions(perform deletions first, then insertions).
 else:
-	print("Entered case 4:")
+
+	print(DELETE_MSG + pathToDFile)
+	print(INSERT_MSG + pathToIFile)
+
 	deleted = dhFiles - dbFiles
 	inserted = dbFiles - dhFiles
 
