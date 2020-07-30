@@ -1,5 +1,5 @@
 from pdf2image import convert_from_path
-from unique import inserted_fnames
+from unique import inserted_fnames, parse_dropbox_files
 from PIL import Image
 
 import pytesseract
@@ -14,7 +14,7 @@ FILE_EXTENSIONS = ["pdf", "png"]
 
 TRACK_NUMB = "Scanning page: %d"
 TRACK_PAGE = "Extracting contents from %s..."
-PATH_TO_ALL = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF"
+PATH_TO_ALL = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF/"
 PATH_TO_IMG = "/Users/k3go/Desktop/TestImages/"
 custom_config = r'--oem 3 --psm 6'
 EMPTY = ""
@@ -38,6 +38,10 @@ def update_dictionary(text):
 		else:
 			dictionary[words] = dictionary[words] + 1
 
+def file_check(f):
+
+	return not f.startswith(REMOVE_CHARS[0]) and len(parse_dropbox_files(f)) > 0
+
 def clean_str(word):
 
 	if (len(word) > 0):
@@ -49,15 +53,17 @@ def clean_str(word):
 for root, dirs, files in os.walk(PATH_TO_ALL):
 
 	for f in files:
+		
 
-		if (f in inserted_fnames):		
+		if (file_check(f) and (parse_dropbox_files(f) in inserted_fnames)):		
 
 			if (f.lower().endswith(FILE_EXTENSIONS[0])):
 		
-				with pdfplumber.open(PATH_TO_ALL + f) as pdf:
+				with pdfplumber.open(os.path.join(root,f)) as pdf:
 			
 					track_page_str(f)
 					num_pages = len(pdf.pages)
+
 
 					while (curr_page_num != num_pages):
 
@@ -77,12 +83,12 @@ for root, dirs, files in os.walk(PATH_TO_ALL):
 
 							else:
 				
-								image = convert_from_path(pdf_path = PATH_TO_ALL + f, output_folder = PATH_TO_IMG, fmt = FILE_EXTENSIONS[1])
+								image = convert_from_path(pdf_path = os.path.join(root,f), output_folder = PATH_TO_IMG, fmt = FILE_EXTENSIONS[1])
 
 								for rootI, dirsI, filesI in os.walk(PATH_TO_IMG):
 									for f in filesI:
 										if (f.lower().endswith(FILE_EXTENSIONS[1])):
-
+											
 											img = cv2.imread(PATH_TO_IMG + f)
 											text = clean_str(pytesseract.image_to_string(img, config=custom_config))
 											text = text.split()
