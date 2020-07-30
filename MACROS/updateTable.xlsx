@@ -1,0 +1,137 @@
+Sub InsertMissingFiles()
+
+Dim inserted As Boolean
+
+Dim strFilename As String
+Dim strTextLine As String
+Dim firHalf As String
+Dim secHalf As String
+
+Dim arrayFNums() As String
+Dim contentArr() As String
+
+Dim counter As Integer
+Dim iFile As Integer
+Dim fileNum As Integer
+Dim displacement As Integer
+
+
+Dim lineNum As Long
+
+Dim splitHalf As Integer
+Dim dash As String
+
+
+splitHalf = 2
+
+strFilename = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
+iFile = FreeFile
+counter = 0
+
+Open strFilename For Input As #iFile
+
+Do Until EOF(1)
+    
+    Line Input #1, strTextLine
+    
+    If Len(strTextLine) > 0 Then
+    
+        ReDim Preserve arrayFNums(0 To counter)
+        arrayFNums(counter) = strTextLine
+        counter = counter + 1
+
+   End If
+
+Loop
+
+Close #iFile
+
+
+For fileNum = 1 To counter
+For lineNum = 1 To 593
+
+    If Len(Cells(lineNum, 1).Value) > 1 Then
+
+        contentArr = Split(Cells(lineNum, 1).Value, "-")
+    
+        If getSizeArray(contentArr) = splitHalf Then
+            
+            If isFileNum(contentArr) Then
+                
+                 If extractFirstHalf(arrayFNums(fileNum - 1)) = contentArr(0) Then
+                    
+                    displacement = 0
+
+                    While extractFirstHalf(Cells(lineNum + displacement, 1).Value) = contentArr(0)
+                        If extractSecondHalf(Cells(lineNum + displacement, 1).Value) < contentArr(1) Then
+                            displacement = displacement + 1
+                        Else
+                            Debug.Print ("Insert Above, first")
+                            inserted = True
+                        End If
+                     
+                    Wend
+                    
+                    If Not inserted Then
+                        Debug.Print ("Insert Above, second")
+                    End If
+                    
+                    inserted = False
+                    Exit For
+
+                End If
+
+            End If
+
+        End If
+
+    End If
+Next
+Next
+
+End Sub
+ 
+
+Function isFileNum(arr() As String) As Boolean
+    
+    Dim status As Boolean: status = True
+    Dim size As Integer: size = getSizeArray(arr)
+    Dim index As Integer
+    
+    For index = 0 To size - 1
+
+    If Not IsNumeric(arr(index)) Then
+        status = False
+        Exit For
+    End If
+ 
+    Next
+            
+    isFileNum = status
+  
+End Function
+
+
+Function getSizeArray(arr() As String) As Integer
+    
+    getSizeArray = UBound(arr, 1) - LBound(arr, 1) + 1
+
+End Function
+
+
+Function extractFirstHalf(docNum As String) As String
+
+    Dim contents() As String
+    contents = Split(docNum, "-")
+    extractFirstHalf = contents(0)
+
+End Function
+
+
+Function extractSecondHalf(docNum As String) As String
+    
+    Dim contents() As String
+    contents = Split(docNum, "-")
+    extractSecondHalf = contents(1)
+
+End Function
