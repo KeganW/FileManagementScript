@@ -1,8 +1,8 @@
 #Author: Kegan Wong
 #Email: kmw037@ucsd.edu
 #Purpose: Log any changes made to the master directory. This script is to be used in conjunction 
-#		  with the excel macro that updates the file in charge of tracking the device history record, 
-#		  device master record and the device history file.
+#		  with another python script that extracts key words from pdf(s) and makes a decision on
+#		  where to insert the pdf file into the design history file.
 #Future Use: Change the path to whatever directory Drop Box is synced to. For full path to a file,
 #	         use os.path.join(root,f) 
 #!/usr/bin/python
@@ -16,56 +16,58 @@ import os
 import time
 
 #initialize empty dictionaries
-dhFiles = {}
-dbFiles = {}
-docTypes = {}
+dh_files = {}
+dbox_file_nums = {}
+doc_category = {}
 
 #convert to empty set
-dhFiles = set()
-dbFiles = set()
-docTypes = set()
+dh_files = set()
+dbox_file_nums = set()
+doc_category = set()
 
 #initialize empty array
+inserted_fnames = []
 columns = []
 
 #paths to files
-pathToLog = "/Users/k3go/Desktop/FileHistoryLog/LastFileLog.txt"
-pathToDFile = "/Users/k3go/Desktop/FileHistoryLog/Deleted.txt"
-pathToIFile = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
-pathToAll = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF"
-pathToExcel = "/Users/k3go/Desktop/TestExcel.xlsx"
+PATH_TO_LOG = "/Users/k3go/Desktop/FileHistoryLog/LastFileLog.txt"
+PATH_TO_DFILE = "/Users/k3go/Desktop/FileHistoryLog/Deleted.txt"
+PATH_TO_IFILE = "/Users/k3go/Desktop/FileHistoryLog/Inserted.txt"
+PATH_TO_ALL = "/Users/k3go/Dropbox (ValenciaT)/Released Documents - PDF"
+PATH_TO_EXCEL = "/Users/k3go/Desktop/TestExcel.xlsm"
 
 #permissions
-write = "w"
-read = "r"
-rw = "w+"
+WRITE = "w"
+RW = "w+"
 
 #messages
 DELETE_MSG = "Appended deleted files in "
 INSERT_MSG = "Appended inserted files in "
 
-#special characters, magic numbers and strings
-newL = "\n"
-hiddenF = "."
-emptyS = ""
-space = " "
-dash = "-"
-extension = ".pdf"
-sheet = "Sheet1"
-splits = 2
-validTime = 1584576000.0
+#special character and strings
+EXTENSION = ".pdf"
+SHEET = "Sheet1"
+NEW_L = "\n"
+HIDDEN_F = "."
+DASH = "-"
+SPACE = " "
+EMPTY_S = ""
+
+#magic numbers
+VALID_TIME = 1584576000.0
+SPLITS = 2
 
 def checkValidFile(fileName):
-	return fileName.lower().endswith(extension)
+	return fileName.lower().endswith(EXTENSION)
 
 def checkDocNumFormat(documentNumber):
 	
 	contents = []
 
 	if (isinstance(documentNumber, str)):
-		contents = documentNumber.split(dash, splits)
+		contents = documentNumber.split(DASH, SPLITS)
 
-	return len(contents) == splits and checkExcelDigits(contents)
+	return len(contents) == SPLITS and checkExcelDigits(contents)
 
 def checkExcelDigits(arrayOfContents):
 
@@ -80,7 +82,7 @@ def checkExcelDigits(arrayOfContents):
 
 def createPrevHistLog(fileFHL):
 	
-	df = pd.read_excel(pathToExcel, sheet)
+	df = pd.read_excel(PATH_TO_EXCEL, SHEET)
 	columnNames = df.columns
 	
 	for column in columnNames:
@@ -91,87 +93,90 @@ def createPrevHistLog(fileFHL):
 	for numStr in docNums:
 
 		if(isinstance(numStr,str) and checkDocNumFormat(numStr)):
-			docTypes.add(numStr.split(dash)[0])
-			dhFiles.add(numStr)
+			doc_category.add(numStr.split(DASH)[0])
+			dh_files.add(numStr)
 			fileFHL.write(numStr)
-			fileFHL.write(newL)
+			fileFHL.write(NEW_L)
 
 def parseDropBoxFiles(fname):
 
-	fContents = fname.split(space)
+	fContents = fname.split(SPACE)
 
 	for contents in fContents:
 		counter = 0
-		if (contents.count(dash) >= 1):
-			fNumStr = contents.split(dash,contents.count(dash))
+		if (contents.count(DASH) >= 1):
+			fNumStr = contents.split(DASH,contents.count(DASH))
 			for parts in fNumStr:
 				if (parts.isnumeric()):
 					counter = counter + 1
 
 			if(counter == len(fNumStr)):
-				if (contents.split(dash)[0] in docTypes):
-					return contents.split(dash)[0] + dash +  contents.split(dash)[1]
+				if (contents.split(DASH)[0] in doc_category):
+					return contents.split(DASH)[0] + DASH +  contents.split(DASH)[1]
 
-	return emptyS
+	return EMPTY_S
 
 def writeDFile(dFile, content):
 
 	dFile.write(content)
-	dFile.write(newL)
+	dFile.write(NEW_L)
 
 def writeIFile(iFile, content):
 
 	iFile.write(content)
-	iFile.write(newL)
+	iFile.write(NEW_L)
 
-lastFileLog = open(pathToLog, rw)
+lastFileLog = open(PATH_TO_LOG, RW)
 createPrevHistLog(lastFileLog)
 
-dFile = open(pathToDFile, write)
-iFile = open(pathToIFile, write)
+dFile = open(PATH_TO_DFILE, WRITE)
+iFile = open(PATH_TO_IFILE, WRITE)
 
 #obtain all files and sub-directories in current DropBox directory
-for root, dirs, files in os.walk(pathToAll):	
+for root, dirs, files in os.walk(PATH_TO_ALL):	
 	for f in files:
-		if (not f.startswith(hiddenF)):
-			if(parseDropBoxFiles(f) != emptyS):	
-				if ((os.path.getmtime(os.path.join(root,f)) >= validTime) or (parseDropBoxFiles(f) in dhFiles)):				
-					dbFiles.add(parseDropBoxFiles(f))
+		if (not f.startswith(HIDDEN_F)):
+			if(parseDropBoxFiles(f) != EMPTY_S):	
+				if ((os.path.getmtime(os.path.join(root,f)) >= VALID_TIME) or (parseDropBoxFiles(f) in dh_files)):				
+					dbox_file_nums.add(parseDropBoxFiles(f))
 					
-#Case 1:  Most current version has same files as old version(dbFiles.issubset(dhFiles) AND dhFiles.issubset(dbFiles), no change
-if dbFiles.issubset(dhFiles) and dhFiles.issubset(dbFiles):
+#Case 1:  Most current version has same files as old version(dbox_file_nums.issubset(dh_files) AND dh_files.issubset(dbox_file_nums), no change
+if dbox_file_nums.issubset(dh_files) and dh_files.issubset(dbox_file_nums):
 	sys.exit(0)
-#Case 2: Most current version is a strict subset of the old version (dbFiles.issubset(dhFiles) = true), deletion
-elif dbFiles.issubset(dhFiles):
+	
+#Case 2: Most current version is a strict subset of the old version (dbox_file_nums.issubset(dh_files) = true), deletion
+elif dbox_file_nums.issubset(dh_files):
 
-	print(DELETE_MSG + pathToDFile)
-	deleted = dhFiles - dbFiles
+	print(DELETE_MSG + PATH_TO_DFILE)
+	deleted = dh_files - dbox_file_nums
 
 	for dStr in deleted:
 		writeDFile(dFile, dStr)
 
-#Case 3: Most current version is a strict superset of the old version (dbFiles.issuperset(dhFiles) = true), insertion
-elif dbFiles.issuperset(dhFiles):
+#Case 3: Most current version is a strict superset of the old version (dbox_file_nums.issuperset(dh_files) = true), insertion
+elif dbox_file_nums.issuperset(dh_files):
 	
-	print(INSERT_MSG + pathToIFile)
-	inserted = dbFiles - dhFiles
+	print(INSERT_MSG + PATH_TO_IFILE)
+	inserted = dbox_file_nums - dh_files
 
 	for iStr in inserted:
+		inserted_fnames.append(iStr)
 		writeIFile(iFile, iStr)
 
 #Case 4: Some hybrid of insertions and deletions(perform deletions first, then insertions).
 else:
 
-	print(DELETE_MSG + pathToDFile)
-	print(INSERT_MSG + pathToIFile)
+	print(DELETE_MSG + PATH_TO_DFILE)
+	print(INSERT_MSG + PATH_TO_IFILE)
 
-	deleted = dhFiles - dbFiles
-	inserted = dbFiles - dhFiles
+	deleted = dh_files - dbox_file_nums
+	inserted = dbox_file_nums - dh_files
 
 	for dStr in deleted:
 		writeDFile(dFile, dStr)
 
 	for iStr in inserted:
+		inserted_fnames.append(iStr)
 		writeIFile(iFile, iStr)
 
 lastFileLog.close()
