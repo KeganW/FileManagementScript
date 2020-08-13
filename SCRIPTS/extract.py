@@ -1,3 +1,20 @@
+#Author: Kegan Wong
+#
+#Email: kmw037@ucsd.edu
+#
+#Purpose: Read into a directory that has multiple pdfs, extracts the text in each pdf for key words, 
+#		  and uses those key words as a determination to where it is placed in the Design History 
+#		  File.
+#
+#Notice:  Project temporarily halted... Left off after extracting key words, and obtaining all their 
+#		  counts from pdfs of different types.	
+#
+#Future Use: Change the path to whatever directory Drop Box is synced to. If pdf quality varies, 
+#			 play with the custom_config, which determines the properties of optical character
+#			 recognition. Modifying the image (grayscale, width, etc) or careful scanning of the
+#			 document may also help improve accuracy.
+#      
+#!/Users/k3go/anaconda3/bin/python
 from pdf2image import convert_from_path
 from unique import inserted_fnames, parse_dropbox_files
 from PIL import Image
@@ -71,49 +88,50 @@ for root, dirs, files in os.walk(PATH_TO_ALL):
 
 						if (curr_page_num < num_pages):
 
-							#extract the text of the current page being read
+							#extract the text of the current page being read using pdfplumber
 							curr_page = pdf.pages[curr_page_num]
 							text = curr_page.extract_text()
 					
-							#non-scanned pdf, use pdfplumber to extract words
+							#non-scanned pdf, extract words and update dictionary
 							if type(text) is str:
 
 								text = clean_str(text)
 								text = text.split()
-
-								update_dictionary(text)					
+								update_dictionary(text)
 
 							#scanned pdf, use optical character recognition to extract words
 							else:
 								
 								#convert all pdf pages into images 
-								image = convert_from_path(pdf_path = os.path.join(root,f), output_folder = PATH_TO_IMG, fmt = FILE_EXTENSIONS[1])
+								image = convert_from_path(pdf_path = os.path.join(root,f), output_folder = PATH_TO_IMG, first_page = curr_page_num + 1, last_page = curr_page_num + 1, fmt = FILE_EXTENSIONS[1])
 
-								for rootI, dirsI, filesI in os.walk(PATH_TO_IMG):
+								for root_I, dirs_I, files_I in os.walk(PATH_TO_IMG):
 
 									#loop through all images
-									for f in filesI:
-										if (f.lower().endswith(FILE_EXTENSIONS[1])):
+									for fi in files_I:
+										if (fi.lower().endswith(FILE_EXTENSIONS[1])):
 
 											#extract the text from each image file
-											img = cv2.imread(PATH_TO_IMG + f)
+											img = cv2.imread(PATH_TO_IMG + fi)
 											text = clean_str(pytesseract.image_to_string(img, config=custom_config))
 											text = text.split()
 											update_dictionary(text)
 				
 											#remove the image after the contents are extracted							
 											try:
-												os.remove(os.path.join(rootI, f))
+												os.remove(os.path.join(root_I, fi))
+												
 
 											except OSError as error:
 												print(error)
 
-								curr_page_num = curr_page_num + 1								
-								break
+									curr_page_num = curr_page_num + 1
+									break
+								continue									
 
-						track_page_num(curr_page_num + 1)
 						curr_page_num = curr_page_num + 1
-
+						track_page_num(curr_page_num)
+						
 					#make determination of where the label goes here, and then clear the dictionary
 
 					curr_page_num = 0
