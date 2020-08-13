@@ -1,15 +1,17 @@
 #Author: Kegan Wong
 #Email: kmw037@ucsd.edu
-#Purpose: Log any changes made to the master directory. This script is to be used in conjunction 
-#		  with another python script that extracts key words from pdf(s) and makes a decision on
-#		  where to insert the pdf file into the design history file.
+#Purpose: Log any changes and notify the user of any changes made to the master 
+#		  directory. This script is to be used in conjunction with another 
+#		  python script that extracts key words from pdf(s) and makes a decision 
+#		  on where to insert the pdf file into the design history file.
 #Future Use: Change the path to whatever directory Drop Box is synced to. For full path to a file,
 #	         use os.path.join(root,f) 
-#!/usr/bin/python
+#!/Users/k3go/anaconda3/bin/python
 import pandas as pd
 
 from pandas import ExcelWriter
 from pandas import ExcelFile
+from tkinter import *
 
 import pathlib
 import sys
@@ -44,6 +46,9 @@ RW = "w+"
 #messages
 DELETE_MSG = "Appended deleted files in "
 INSERT_MSG = "Appended inserted files in "
+TITLE = "Updates for Design History File"
+SUMMARY_I = "The following files were INSERTED but not recorded in the Design History File..."
+SUMMARY_D = "The following files were DELETED but not recorded in the Design History File..."
 
 #special character and strings
 EXTENSION = ".pdf"
@@ -53,6 +58,8 @@ HIDDEN_F = "."
 DASH = "-"
 SPACE = " "
 EMPTY_S = ""
+VERTICAL = "y"
+
 
 #magic numbers
 VALID_TIME = 1584576000.0
@@ -118,6 +125,16 @@ def parse_dropbox_files(fname):
 
 	return EMPTY_S
 
+def content_message(ls):
+
+	if type(ls) is set:
+		message = ""
+		for dnums in ls:
+			message += NEW_L + dnums 
+		return message
+
+	return EMPTY_S
+
 def write_file(file, content):
 
 	file.write(content)
@@ -179,3 +196,24 @@ else:
 last_file_log.close()
 d_file.close()
 i_file.close()
+
+#notify the user with a popup once per week(crontab runs behind the scenes)
+if (len(inserted) > 0 or len(deleted) > 0):
+	root = Tk()
+	root.title(TITLE)
+
+	s_bar = Scrollbar(root)
+	s_bar.pack(side=RIGHT, fill= VERTICAL)
+
+	content = Text(root, yscrollcommand = s_bar.set)
+	content.pack()
+
+	if (len(inserted) > 0):
+		content.insert(END, SUMMARY_I + content_message(inserted))
+
+	if (len(deleted) > 0):	
+		content.insert(END, NEW_L + SUMMARY_D + content_message(deleted))
+
+	s_bar.config(command=content.yview)
+	root.mainloop()
+#to run a script every certain day, look into crontab
