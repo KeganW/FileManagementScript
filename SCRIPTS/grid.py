@@ -136,23 +136,6 @@ def check_excel_digits(arrayOfContents):
 
 	return status
 
-def create_bank(bank, dhf_files, dmr_files, neither_files):
-
-	for contents in b_file:
-		bank.add(contents)
-
-	for dhf_f in dhf_files:
-		if dhf_f not in bank:
-			write_file(b_file, dhf_f)
-
-	for dmr_f in dmr_files:
-		if dmr_f not in bank:
-			write_file(b_file, dmr_f)
-
-	for nei_f in neither_files:
-		if nei_f not in bank:
-			write_file(b_file, nei_f)
-
 def create_prev_hist_log(fileFHL):
 	
 	df = pd.read_excel(PATH_TO_EXCEL, SHEET)
@@ -303,9 +286,6 @@ def restart_gui(root):
 	dhf_files.clear()
 	cbox_names.clear()
 
-	#deleted = dh_file_nums - dbox_file_nums
-	#inserted = dbox_file_nums - dh_file_nums
-
 	root.destroy()
 
 	launch_gui(store_inserted, store_deleted, False)
@@ -391,13 +371,11 @@ def launch_gui(inserted, deleted, isDHF):
 			set_dhf = set(dhf_files)
 			content.insert(END, NEW_L + SUMMARY_DHF + content_message(set_dhf))
 
-		#set_remaining = set(dbox_file_nums - dh_file_nums).union(dh_file_nums - dbox_file_nums) - set(dmr_files) - set(dhf_files)
 		set_remaining = store_inserted.union(store_deleted) - set(dmr_files) - set(dhf_files)
+
 		if (len(set_remaining) > 0):
 			content.insert(END, NEW_L + SUMMARY_UNUSED + content_message(set_remaining))
 		
-		#create_bank(b_file, set(dhf_files), set(dmr_files), set(dbox_file_nums - dh_file_nums))
-
 		s_bar.config(command=content.yview)
 
 	root.mainloop()
