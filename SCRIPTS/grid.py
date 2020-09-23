@@ -2,7 +2,7 @@
 #Email: kmw037@ucsd.edu
 #Purpose: Log any changes and notify the user of any changes made to the Design  
 #		  History File. Changes include deletions and insertions. This script 
-#		  runs automatically every week, and the toolbar helps with . 
+#		  runs automatically every week. 
 #Future Use: Change the path to whatever directory Drop Box is synced to. For full path to a file,
 #	         use os.path.join(root,f) 
 #!/Users/k3go/anaconda3/bin/python
@@ -22,12 +22,16 @@ bank = {}
 doc_category_nums = {}
 dbox_file_nums = {}
 dh_file_nums = {}
+store_inserted = {}
+store_deleted = {}
 
 #convert to empty set
 bank = set()
 doc_category_nums = set()
 dbox_file_nums = set()
 dh_file_nums = set()
+store_inserted = set()
+store_deleted = set()
 
 #initialize empty array
 inserted_fnames = []
@@ -56,8 +60,14 @@ INSERT_MSG = "Appended inserted files in "
 TITLE = "Updates for Design History File"
 SUMMARY_I = "The following files were INSERTED but not recorded in the Design History File..."
 SUMMARY_D = "The following files were DELETED but not recorded in the Design History File..."
-SUMMARY_DMR = "The following files are to be inserted to the DMR:"
-SUMMARY_DHF = "The following files are to be inserted to the DHF:"
+SUMMARY_COMBINED = "The following files are to be inserted into the DMR and DHF:"
+SUMMARY_UNUSED = "The following files do not belong in either the DMR or DHF:"
+SUMMARY_DHF = "The following files are to be inserted into the DHF but not the DMR:"
+TRACK_DMR = "The following files are currently marked as belonging in the DMR:"
+TRACK_DHF = "The following files are currently marked as belonging in the DHF:"
+NO_DMR = "No files currently tracked to go into the DMR"
+NO_DHF = "No files currently tracked to go into the DHF"
+
 
 #special strings
 R_CLICK = "<Button-1>"
@@ -85,9 +95,21 @@ C_SPAN = 5
 SPLITS = 2
 GAP = 2
 
-#GUI constants
+#GUI constants and titles
 COLOR_1 = "green"
 COLOR_2 = "red"
+
+TOOLS = "Tools"
+CHECK = "Check All"
+CLEAR = "Clear All"
+LS_DHF = "List Design History Files"
+LS_DMR = "List Design Master Record Files"
+
+COMMANDS = "Commands"
+RESTART = "Restart Program"
+SELECT_DHF = "Select Design History Files"
+SUMMARY_R = "Summary Report"
+
 
 #the following methods are used to determine any changes in the DHF with dropbox
 def check_valid_file(fileName):
@@ -114,18 +136,22 @@ def check_excel_digits(arrayOfContents):
 
 	return status
 
-def create_bank(bank, inserted, deleted):
+def create_bank(bank, dhf_files, dmr_files, neither_files):
 
 	for contents in b_file:
 		bank.add(contents)
 
-	for inum in inserted:
-		if inum not in bank:
-			write_file(b_file, inum)
+	for dhf_f in dhf_files:
+		if dhf_f not in bank:
+			write_file(b_file, dhf_f)
 
-	for dnum in deleted:
-		if dnum not in bank:
-			write_file(b_file, dnum)
+	for dmr_f in dmr_files:
+		if dmr_f not in bank:
+			write_file(b_file, dmr_f)
+
+	for nei_f in neither_files:
+		if nei_f not in bank:
+			write_file(b_file, nei_f)
 
 def create_prev_hist_log(fileFHL):
 	
@@ -199,23 +225,39 @@ def fill_popup(ls, r, g_counter, isDHF, root):
 
 def track_contents(event, ls, isDHF, root):
 
-	if ((root.getvar((event.widget.cget(VARIABLE)))) == ZERO_STR):
+	if (not isDHF):
 
-		if (event.widget.cget(TEXT) in dmr_files):
-			dmr_files.remove(event.widget.cget(TEXT))
+		if ((root.getvar((event.widget.cget(VARIABLE)))) == ZERO_STR):
 
-	elif ((root.getvar((event.widget.cget(VARIABLE)))) == ONE_STR):
+			if (event.widget.cget(TEXT) in dmr_files):
+				dmr_files.remove(event.widget.cget(TEXT))
+				#dhf_files.remove(event.widget.cget(TEXT))
 
-		if (event.widget.cget(TEXT) not in dmr_files):
-			dmr_files.append(event.widget.cget(TEXT))
+		elif ((root.getvar((event.widget.cget(VARIABLE)))) == ONE_STR):
 
-def list_dmr():
-	#PROBLEM HERE
-	if (len(dmr_files) == 0):
-		print("No files currently tracked.")
+			if (event.widget.cget(TEXT) not in dmr_files):
+				dmr_files.append(event.widget.cget(TEXT))
+				#dhf_files.append(event.widget.cget(TEXT))
 
 	else:
-		print("The following files are currently marked as belonging in the DMR:")
+		if ((root.getvar((event.widget.cget(VARIABLE)))) == ZERO_STR):
+
+			if (event.widget.cget(TEXT) in dhf_files):
+
+				dhf_files.remove(event.widget.cget(TEXT))
+
+		elif ((root.getvar((event.widget.cget(VARIABLE)))) == ONE_STR):
+
+			if (event.widget.cget(TEXT) not in dhf_files):
+
+				dhf_files.append(event.widget.cget(TEXT))
+def list_dmr():
+	
+	if (len(dmr_files) == 0):
+		print(NO_DMR)
+
+	else:
+		print(TRACK_DMR)
 
 	for files in dmr_files:
 		print(files)
@@ -223,30 +265,37 @@ def list_dmr():
 def list_dhf():
 
 	if (len(dhf_files) == 0):
-		print("No files currently tracked.")
+		print(NO_DHF)
 
 	else:
-		print("The following files are currently marked as belonging in the DHF:")
+		print(TRACK_DHF)
 
 	for files in dhf_files:
 		print(files)
 
-def check_all():
+def check_all(isDHF):
 
 	for cbox in cbox_names:
 		cbox.select()
 		
-		if (cbox.cget(TEXT) not in dmr_files):
-			dmr_files.append(cbox.cget(TEXT))
+		if (not isDHF):
+			if (cbox.cget(TEXT) not in dmr_files):
+				dmr_files.append(cbox.cget(TEXT))
+		else:
+			if (cbox.cget(TEXT) not in dhf_files):
+				dhf_files.append(cbox.cget(TEXT))
 
-def clear_all():
+def clear_all(isDHF):
 
-	#issue with selecting all after calling dhf_gui, maybe hanging references???
 	for cbox in cbox_names:
 		cbox.deselect()
 
-		if (cbox.cget(TEXT) in dmr_files):
-			dmr_files.remove(cbox.cget(TEXT))
+		if (not isDHF):
+			if (cbox.cget(TEXT) in dmr_files):
+				dmr_files.remove(cbox.cget(TEXT))
+		else:
+			if (cbox.cget(TEXT) in dhf_files):
+				dhf_files.remove(cbox.cget(TEXT))
 
 def restart_gui(root):
 
@@ -254,14 +303,14 @@ def restart_gui(root):
 	dhf_files.clear()
 	cbox_names.clear()
 
-	deleted = dh_file_nums - dbox_file_nums
-	inserted = dbox_file_nums - dh_file_nums
+	#deleted = dh_file_nums - dbox_file_nums
+	#inserted = dbox_file_nums - dh_file_nums
 
 	root.destroy()
 
-	launch_gui(inserted, deleted, False)
+	launch_gui(store_inserted, store_deleted, False)
 
-def dhf_gui(root, inserted, deleted):
+def dhf_gui(inserted, deleted, root):
 
 	dmr_set = set(dmr_files)
 	ins_set = set(inserted)
@@ -279,7 +328,7 @@ def dhf_gui(root, inserted, deleted):
 def launch_gui(inserted, deleted, isDHF):
 
 	g_counter = 0
-	r = 1 
+	r = 1  
 
 	for index in range(len(inserted) + len(deleted)):
 		cbox_names.append(CBOX_ID + str(index))
@@ -296,21 +345,23 @@ def launch_gui(inserted, deleted, isDHF):
 	tool_menu = Menu(main_menu)
 	command_menu = Menu(main_menu)
 
-	main_menu.add_cascade(label = "Tools", menu= tool_menu)
-	tool_menu.add_command(label="Check All", command = check_all)
-	tool_menu.add_command(label="Clear All", command = clear_all)
-	tool_menu.add_command(label="List Design Master Record", command = list_dmr)
-	tool_menu.add_command(label="List Design History File", command = list_dhf)
+	main_menu.add_cascade(label = TOOLS, menu= tool_menu)
+	tool_menu.add_command(label= CHECK, command = lambda: check_all(isDHF))
+	tool_menu.add_command(label= CLEAR, command = lambda: clear_all(isDHF))
+	tool_menu.add_command(label= LS_DHF, command = list_dhf)
+	tool_menu.add_command(label= LS_DMR, command = list_dmr)
 
-	main_menu.add_cascade(label = "Commands", menu= command_menu)
-	command_menu.add_command(label="Restart", command = lambda: restart_gui(root))
+	main_menu.add_cascade(label = COMMANDS, menu= command_menu)
+	command_menu.add_command(label=RESTART, command = lambda: restart_gui(root))
 	if (not isDHF):
-		command_menu.add_command(label="DHF", command = lambda: dhf_gui(root, inserted, deleted))
+		command_menu.add_command(label=SELECT_DHF, command = lambda: dhf_gui(inserted, deleted, root))
+	else: 
+		command_menu.add_command(label=SUMMARY_R, command = lambda: launch_gui([],[], True))
 
 	if ((len(inserted) != 0) or (len(deleted) != 0)):
 
 		title_i = Label(root, text=SUMMARY_I, bg=COLOR_1)
-		title_i.grid(row = 0,columnspan=C_SPAN)
+		title_i.grid(row = 0,columnspan=C_SPAN) 
 
 		fill_popup(inserted, r, g_counter, isDHF, root)
 
@@ -334,12 +385,19 @@ def launch_gui(inserted, deleted, isDHF):
 		content.pack(side=LEFT, fill = Y)
 
 		if (len(dmr_files) > 0):
-			set_temp = set(dmr_files)
-			content.insert(END, SUMMARY_DMR + content_message(set_temp))
+			set_dmr = set(dmr_files)
+			content.insert(END, SUMMARY_COMBINED + content_message(set_dmr))
 		if (len(dhf_files) > 0):
-			set_temp = set(dhf_files)
-			content.insert(END, SUMMARY_DHF + content_message(set_temp))
-	
+			set_dhf = set(dhf_files)
+			content.insert(END, NEW_L + SUMMARY_DHF + content_message(set_dhf))
+
+		#set_remaining = set(dbox_file_nums - dh_file_nums).union(dh_file_nums - dbox_file_nums) - set(dmr_files) - set(dhf_files)
+		set_remaining = store_inserted.union(store_deleted) - set(dmr_files) - set(dhf_files)
+		if (len(set_remaining) > 0):
+			content.insert(END, NEW_L + SUMMARY_UNUSED + content_message(set_remaining))
+		
+		#create_bank(b_file, set(dhf_files), set(dmr_files), set(dbox_file_nums - dh_file_nums))
+
 		s_bar.config(command=content.yview)
 
 	root.mainloop()
@@ -347,7 +405,7 @@ def launch_gui(inserted, deleted, isDHF):
 last_file_log = open(PATH_TO_LOG, RW)
 create_prev_hist_log(last_file_log)
 
-b_file = open(PATH_TO_BANK, RW)
+b_file = open(PATH_TO_BANK, READ)
 d_file = open(PATH_TO_DFILE, WRITE)
 i_file = open(PATH_TO_IFILE, WRITE)
 
@@ -396,12 +454,26 @@ else:
 		inserted_fnames.append(iStr)
 		write_file(i_file, iStr)
 
-create_bank(b_file, inserted, deleted)
 
 last_file_log.close()
-b_file.close()
+
 d_file.close()
 i_file.close()
+
+for exclude_file in b_file:
+
+	if exclude_file.strip(NEW_L) in inserted:
+		
+		inserted.remove(exclude_file.strip(NEW_L))
+
+	if exclude_file.strip(NEW_L) in deleted:
+		
+		deleted.remove(exclude_file.strip(NEW_L))
+
+store_inserted = inserted
+store_deleted = deleted
+
+b_file.close()
 
 #notify the user with a popup once per week(crontab runs behind the scenes)
 if (len(inserted) > 0 or len(deleted) > 0):
